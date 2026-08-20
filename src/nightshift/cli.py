@@ -9,6 +9,7 @@ from rich.table import Table
 
 from nightshift.agent.diagnose import DiagnosticEngine
 from nightshift.config import settings
+from nightshift.pipeline import NightShiftPipeline
 from nightshift.remediation.loop import RemediationLoop
 from nightshift.remediation.models import RemediationStatus
 
@@ -57,54 +58,64 @@ def run_diagnostics(repo_path: str = "demo_repo", test_cmd: str = "pytest test_d
     console.print("\n[bold green][OK] Diagnostic Complete.[/bold green]\n")
 
 
-def run_remediation(repo_path: str = "demo_repo", test_cmd: str = "pytest test_data_pipeline.py"):
-    """Execute full autonomous remediation loop (Cause -> Change -> Verification)."""
+def run_pipeline(repo_path: str = "demo_repo", test_cmd: str = "pytest test_data_pipeline.py", create_pr: bool = False):
+    """Execute end-to-end recovery pipeline with optional GitHub PR creation."""
     console.print(Panel.fit(
         "[bold cyan]NIGHT SHIFT[/bold cyan] - [white]Autonomous Software Maintenance Agent[/white]\n"
-        "[dim]Mode: Milestone 2 — Autonomous Remediation & Bounded Self-Correction[/dim]",
+        f"[dim]Mode: End-to-End Recovery Pipeline (Create PR: {create_pr})[/dim]",
         border_style="cyan"
     ))
 
     target = Path(repo_path).resolve()
     console.print(f"[bold]Target Repository:[/bold] {target}")
     console.print(f"[bold]Test Command:[/bold] {test_cmd}")
-    console.print("[dim]Starting bounded self-correction loop (max 3 attempts)...[/dim]\n")
+    console.print("[dim]Executing sandbox remediation and policy verification...[/dim]\n")
 
-    loop = RemediationLoop()
-    result = loop.run(str(target), test_command=test_cmd, max_attempts=3)
+    pipeline = NightShiftPipeline()
+    outcome = pipeline.execute_recovery(
+        repo_path=str(target),
+        test_command=test_cmd,
+        create_pr=create_pr,
+    )
 
-    # Summary Table
-    table = Table(title="Remediation Workflow Result", show_header=True, header_style="bold magenta", safe_box=True)
+    res = outcome.remediation
+    table = Table(title="Pipeline Workflow Outcome", show_header=True, header_style="bold magenta", safe_box=True)
     table.add_column("Property", style="cyan", width=25)
     table.add_column("Value / Details", style="white")
 
-    status_color = "green" if result.status == RemediationStatus.RESOLVED else "yellow" if result.status == RemediationStatus.ALREADY_PASSING else "red"
-    table.add_row("Status", f"[{status_color}]{result.status.value}[/{status_color}]")
-    table.add_row("Incident ID", result.incident_id)
-    table.add_row("Attempts Taken", str(result.total_attempts))
-    table.add_row("Total Duration", f"{result.total_duration_ms:.1f} ms")
-    table.add_row("Summary", result.summary)
+    status_color = "green" if res.status == RemediationStatus.RESOLVED else "yellow" if res.status == RemediationStatus.ALREADY_PASSING else "red"
+    table.add_row("Status", f"[{status_color}]{res.status.value}[/{status_color}]")
+    table.add_row("Incident ID", res.incident_id)
+    table.add_row("Attempts Taken", str(res.total_attempts))
+    table.add_row("Execution Duration", f"{outcome.duration_ms:.1f} ms")
+    table.add_row("Summary", res.summary)
 
-    if result.final_policy_decision:
+    if res.final_policy_decision:
         table.add_row(
             "Policy Decision",
-            f"{result.final_policy_decision.level.value} (Risk: {result.final_policy_decision.risk_score})",
+            f"{res.final_policy_decision.level.value} (Risk: {res.final_policy_decision.risk_score})",
         )
+
+    if outcome.pull_request:
+        table.add_row("Pull Request URL", f"[bold green]{outcome.pull_request.url}[/bold green]")
+        table.add_row("PR Branch", outcome.pull_request.branch)
 
     console.print(table)
 
-    if result.successful_patch and result.successful_patch.unified_diff:
+    if res.successful_patch and res.successful_patch.unified_diff:
         console.print("\n[bold cyan]Verified Patch Unified Diff:[/bold cyan]")
-        syntax = Syntax(result.successful_patch.unified_diff, "diff", theme="monokai", line_numbers=False)
+        syntax = Syntax(res.successful_patch.unified_diff, "diff", theme="monokai", line_numbers=False)
         console.print(syntax)
-        console.print(f"[bold green][OK] Patch Verified in Sandbox. Sandbox tests passing cleanly.[/bold green]\n")
+        console.print(f"[bold green][OK] Verified in Sandbox. Ready for review.[/bold green]\n")
 
 
 if __name__ == "__main__":
-    mode = sys.argv[1] if len(sys.argv) > 1 else "remediate"
-    repo_arg = sys.argv[2] if len(sys.argv) > 2 else "demo_repo"
+    args = sys.argv[1:]
+    mode = args[0] if len(args) > 0 else "remediate"
+    repo_arg = args[1] if len(args) > 1 else "demo_repo"
+    create_pr_flag = "--pr" in args or mode == "pr"
 
     if mode == "diagnose":
         run_diagnostics(repo_arg)
     else:
-        run_remediation(repo_arg)
+        run_pipeline(repo_arg, create_pr=create_pr_flag)
