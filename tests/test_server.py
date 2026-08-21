@@ -1,4 +1,4 @@
-"""Integration tests for the FastAPI backend service."""
+"""Integration tests for the FastAPI backend service and UI console."""
 
 from pathlib import Path
 import pytest
@@ -10,6 +10,13 @@ from nightshift.server.app import app
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+def test_dashboard_ui_endpoint(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "NIGHT SHIFT" in response.text
+    assert "Autonomous After-Hours Software Maintenance Worker" in response.text
 
 
 def test_health_endpoint(client):
