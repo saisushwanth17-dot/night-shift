@@ -9,9 +9,10 @@ from rich.table import Table
 
 from nightshift.agent.diagnose import DiagnosticEngine
 from nightshift.config import settings
+from nightshift.memory.store import EngineeringMemoryStore
 from nightshift.pipeline import NightShiftPipeline
-from nightshift.remediation.loop import RemediationLoop
 from nightshift.remediation.models import RemediationStatus
+from nightshift.reporting.briefing import MorningBriefingGenerator
 
 # Force safe ASCII rendering on Windows console
 console = Console(safe_box=True, highlight=False)
@@ -109,6 +110,23 @@ def run_pipeline(repo_path: str = "demo_repo", test_cmd: str = "pytest test_data
         console.print(f"[bold green][OK] Verified in Sandbox. Ready for review.[/bold green]\n")
 
 
+def run_morning_briefing(repo_name: str = "demo_repo"):
+    """Generate and display the Morning Briefing from engineering memory."""
+    memory_store = EngineeringMemoryStore()
+    incidents = memory_store.get_recent_incidents(limit=10)
+    session = memory_store.start_session(repo_name)
+    closed_session = memory_store.close_session(
+        session_id=session.session_id,
+        incidents_handled=len(incidents),
+        prs_opened=sum(1 for i in incidents if i.pr_url),
+        blocked_count=sum(1 for i in incidents if "BLOCK" in i.status or "APPROVAL" in i.status),
+    )
+
+    generator = MorningBriefingGenerator()
+    briefing = generator.generate(closed_session, incidents)
+    generator.render_console(briefing, console)
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     mode = args[0] if len(args) > 0 else "remediate"
@@ -117,5 +135,7 @@ if __name__ == "__main__":
 
     if mode == "diagnose":
         run_diagnostics(repo_arg)
+    elif mode == "briefing":
+        run_morning_briefing(repo_arg)
     else:
         run_pipeline(repo_arg, create_pr=create_pr_flag)
