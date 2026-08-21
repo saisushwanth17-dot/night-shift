@@ -18,7 +18,7 @@ from nightshift.reporting.briefing import MorningBriefingGenerator
 console = Console(safe_box=True, highlight=False)
 
 
-def run_diagnostics(repo_path: str = "demo_repo", test_cmd: str = "pytest test_data_pipeline.py"):
+def run_diagnostics(repo_path: str = "nightshift-demo", test_cmd: str = "pytest test_data_pipeline.py"):
     """Execute diagnostic sweep on target repository."""
     console.print(Panel.fit(
         "[bold cyan]NIGHT SHIFT[/bold cyan] - [white]Autonomous Software Maintenance Agent[/white]\n"
@@ -51,7 +51,7 @@ def run_diagnostics(repo_path: str = "demo_repo", test_cmd: str = "pytest test_d
     table.add_row("Suspect Line", str(report.suspect_line_number or "N/A"))
     
     if report.policy_check:
-        policy_verdict = f"[{'green' if report.policy_check.allowed else 'red'}]{report.policy_check.level.value}[/] (Risk: {report.policy_check.risk_score})"
+        policy_verdict = f"[{'green' if report.policy_check.allowed else 'red'}]{report.policy_check.level.value}[/]"
         table.add_row("Policy Engine Verdict", policy_verdict)
         table.add_row("Policy Reason", report.policy_check.reason)
 
@@ -59,7 +59,7 @@ def run_diagnostics(repo_path: str = "demo_repo", test_cmd: str = "pytest test_d
     console.print("\n[bold green][OK] Diagnostic Complete.[/bold green]\n")
 
 
-def run_pipeline(repo_path: str = "demo_repo", test_cmd: str = "pytest test_data_pipeline.py", create_pr: bool = False):
+def run_pipeline(repo_path: str = "nightshift-demo", test_cmd: str = "pytest test_data_pipeline.py", create_pr: bool = False):
     """Execute end-to-end recovery pipeline with optional GitHub PR creation."""
     console.print(Panel.fit(
         "[bold cyan]NIGHT SHIFT[/bold cyan] - [white]Autonomous Software Maintenance Agent[/white]\n"
@@ -94,7 +94,7 @@ def run_pipeline(repo_path: str = "demo_repo", test_cmd: str = "pytest test_data
     if res.final_policy_decision:
         table.add_row(
             "Policy Decision",
-            f"{res.final_policy_decision.level.value} (Risk: {res.final_policy_decision.risk_score})",
+            f"{res.final_policy_decision.level.value} ({res.final_policy_decision.reason})",
         )
 
     if outcome.pull_request:
@@ -110,7 +110,7 @@ def run_pipeline(repo_path: str = "demo_repo", test_cmd: str = "pytest test_data
         console.print(f"[bold green][OK] Verified in Sandbox. Ready for review.[/bold green]\n")
 
 
-def run_morning_briefing(repo_name: str = "demo_repo"):
+def run_morning_briefing(repo_name: str = "nightshift-demo"):
     """Generate and display the Morning Briefing from engineering memory."""
     memory_store = EngineeringMemoryStore()
     incidents = memory_store.get_recent_incidents(limit=10)
@@ -130,7 +130,7 @@ def run_morning_briefing(repo_name: str = "demo_repo"):
 if __name__ == "__main__":
     args = sys.argv[1:]
     mode = args[0] if len(args) > 0 else "remediate"
-    repo_arg = args[1] if len(args) > 1 else "demo_repo"
+    repo_arg = args[1] if len(args) > 1 else "nightshift-demo"
     create_pr_flag = "--pr" in args or mode == "pr"
 
     if mode == "diagnose":

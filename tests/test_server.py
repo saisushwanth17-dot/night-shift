@@ -16,7 +16,7 @@ def test_dashboard_ui_endpoint(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "NIGHT SHIFT" in response.text
-    assert "Autonomous After-Hours Software Maintenance Worker" in response.text
+    assert "Autonomous Software Maintenance Worker" in response.text
 
 
 def test_health_endpoint(client):
@@ -62,7 +62,7 @@ def test_webhook_workflow_run_failure_queued(client):
 
 
 def test_trigger_diagnostic_api(client):
-    repo_path = str(Path(__file__).resolve().parents[1] / "demo_repo")
+    repo_path = str(Path(__file__).resolve().parents[1] / "nightshift-demo")
     response = client.post(
         "/api/triggers/diagnose",
         json={"repo_path": repo_path, "test_command": "pytest test_data_pipeline.py"},
@@ -74,13 +74,13 @@ def test_trigger_diagnostic_api(client):
 
 
 def test_trigger_remediation_api(client):
-    repo_path = str(Path(__file__).resolve().parents[1] / "demo_repo")
+    repo_path = str(Path(__file__).resolve().parents[1] / "nightshift-demo")
     response = client.post(
         "/api/triggers/remediate",
         json={
             "repo_path": repo_path,
             "test_command": "pytest test_data_pipeline.py",
-            "repo_name": "demo_repo",
+            "repo_name": "nightshift-demo",
             "create_pr": False,
         },
     )
@@ -90,13 +90,22 @@ def test_trigger_remediation_api(client):
     assert data["remediation"]["successful_patch"] is not None
 
 
+def test_trigger_evaluation_api(client):
+    response = client.post("/api/triggers/evaluate")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_scenarios"] == 5
+    assert data["scenarios_passed"] == 5
+    assert data["pass_rate_percent"] == 100.0
+
+
 def test_briefing_api(client):
-    response = client.get("/api/briefing?repo_name=demo_repo")
+    response = client.get("/api/briefing?repo_name=nightshift-demo")
     assert response.status_code == 200
     data = response.json()
     assert "briefing" in data
     assert "markdown" in data
-    assert data["briefing"]["repo_name"] == "demo_repo"
+    assert data["briefing"]["repo_name"] == "nightshift-demo"
 
 
 def test_incidents_api(client):

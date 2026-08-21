@@ -5,6 +5,7 @@ import pytest
 
 from nightshift.adapters.github import GitHubAdapter, PullRequestInfo
 from nightshift.pipeline import NightShiftPipeline
+from nightshift.policy.engine import PolicyAuditEvidence
 from nightshift.remediation.models import RemediationStatus
 from nightshift.reporting.templates import generate_pr_markdown_body
 
@@ -30,11 +31,18 @@ def test_pr_markdown_formatting():
         successful_patch=patch,
         final_policy_decision=AutonomyDecision(
             level=AutonomyLevel.AUTO_ALLOW,
-            risk_score=0.2,
             allowed=True,
             requires_human=False,
             reason="Low risk",
             target="app/pipeline.py",
+            evidence=PolicyAuditEvidence(
+                target_scope="SOURCE_ONLY (app/pipeline.py)",
+                secrets_and_credentials_check="PASSED",
+                infrastructure_and_deploy_check="PASSED",
+                diff_boundary_check="2 lines modified",
+                sandbox_verification="MANDATORY",
+                verdict="PERMITTED",
+            ),
         ),
         total_duration_ms=1200.0,
         summary="Resolved cleanly.",
@@ -44,11 +52,11 @@ def test_pr_markdown_formatting():
     assert "inc-test99" in md
     assert "AUTO_ALLOW" in md
     assert "Safe initialization" in md
-    assert "EXIT CODE 0 (PASSED)" in md
+    assert "0 (ALL TESTS PASSED)" in md
 
 
 def test_pipeline_execution_on_demo_repo():
-    repo_path = Path(__file__).resolve().parents[1] / "demo_repo"
+    repo_path = Path(__file__).resolve().parents[1] / "nightshift-demo"
     pipeline = NightShiftPipeline()
 
     outcome = pipeline.execute_recovery(
@@ -60,4 +68,4 @@ def test_pipeline_execution_on_demo_repo():
     assert outcome.remediation.status == RemediationStatus.RESOLVED
     assert outcome.pr_markdown is not None
     assert "data_pipeline.py" in outcome.pr_markdown
-    assert outcome.pull_request is None  # create_pr was False
+    assert outcome.pull_request is None

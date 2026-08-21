@@ -26,7 +26,7 @@ def test_blocked_secret_paths(policy_engine):
         decision = policy_engine.evaluate_file_mutation(path)
         assert decision.level == AutonomyLevel.BLOCK, f"Expected BLOCK for {path}, got {decision.level}"
         assert decision.allowed is False
-        assert decision.risk_score == 1.0
+        assert decision.evidence.verdict == "STRICTLY_BLOCKED"
 
 
 def test_approval_required_manifest_paths(policy_engine):

@@ -53,12 +53,10 @@ async def handle_github_webhook(
 
         # Check if this is a failed CI run
         if action == "completed" and conclusion == "failure":
-            # In a live deployment, clone repo or run on configured workspace
-            # For local demo repository, default to demo_repo
             background_tasks.add_task(
                 _process_workflow_failure,
                 repo_name=repo_name,
-                repo_path="demo_repo",
+                repo_path="nightshift-demo",
                 test_cmd="pytest test_data_pipeline.py",
             )
             return WebhookResponse(

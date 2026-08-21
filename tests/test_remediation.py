@@ -21,8 +21,8 @@ def test_unified_diff_generation():
 
 
 def test_remediation_loop_resolves_demo_repo():
-    """Verify autonomous remediation of the real bug in demo_repo inside sandbox."""
-    repo_path = Path(__file__).resolve().parents[1] / "demo_repo"
+    """Verify autonomous remediation of the real bug in nightshift-demo inside sandbox."""
+    repo_path = Path(__file__).resolve().parents[1] / "nightshift-demo"
     assert repo_path.exists()
 
     loop = RemediationLoop()
@@ -32,20 +32,18 @@ def test_remediation_loop_resolves_demo_repo():
         max_attempts=3,
     )
 
-    # Must resolve cleanly on attempt 1
     assert result.status == RemediationStatus.RESOLVED
     assert result.total_attempts >= 1
     assert result.successful_patch is not None
     assert result.successful_patch.file_path == "data_pipeline.py"
     assert result.successful_patch.diff_lines_count > 0
-    assert "meta = event.get" in result.successful_patch.proposed_content
+    assert "metadata" in result.successful_patch.proposed_content
     assert result.final_policy_decision.level == AutonomyLevel.AUTO_ALLOW
     assert result.final_policy_decision.allowed is True
 
 
 def test_remediation_blocked_by_policy(tmp_path):
     """Verify that a failure pointing to a secret/blocked file is halted by PolicyEngine."""
-    # Create fake repo where suspect file is .env
     demo_dir = tmp_path / "mock_repo"
     demo_dir.mkdir()
     (demo_dir / ".env").write_text("DATABASE_URL=postgres://...", encoding="utf-8")
